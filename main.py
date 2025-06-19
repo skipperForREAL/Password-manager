@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 from random import randint, shuffle, choice
 import pyperclip
+import json
 
 # ---------------------------- CONSTANTS ------------------------------- #
 FONT_NAME = "Arial"
@@ -37,19 +38,35 @@ def save():
     email = email_entry.get()
     password = password_entry.get()
 
+    new_data = {
+        website: {
+        "email":email,
+        "password":password
+    }
+    }
+
+
     if len(website) == 0 or len(password) == 0:
         messagebox.showwarning(title="Empty Fields",
                              message="Please don't leave any fields empty!")
     else:
-        is_ok = messagebox.askokcancel(
-            title=website,
-            message=f"These are the details entered:\n\nEmail: {email}\nPassword: {password}\n\nIs this OK to save?"
-        )
-        if is_ok:
-            with open("savedDetails.txt", "a") as data_file:
-                data_file.write(f"{website} | {email} | {password}\n")
+        try:
+            with open("savedDetails.json", "r") as data_file:
+                # loading the data
+                data = json.load(data_file)
+        except FileNotFoundError:
+            with open("savedDetails.json", "w") as data_file:
+                data = json.dump(new_data, data_file, indent=4)
+        else:
+                # making an update
+                data.update(new_data)
+                with open("savedDetails.json", "w") as data_file:
+                    # saving updated data
+                    json.dump(data, data_file, indent=4)
+        finally:
                 website_entry.delete(0, END)
                 password_entry.delete(0, END)
+
 
 # ---------------------------- UI SETUP ------------------------------- #
 window = Tk()
@@ -75,8 +92,8 @@ Label(text="Email/Username:", bg=BG_COLOR, fg=TEXT_COLOR, font=(FONT_NAME, 10)).
 Label(text="Password:", bg=BG_COLOR, fg=TEXT_COLOR, font=(FONT_NAME, 10)).grid(row=3, column=0, sticky="e", padx=5, pady=5)
 
 # Entries
-website_entry = Entry(width=35, bg=ENTRY_COLOR, fg=TEXT_COLOR, font=(FONT_NAME, 10), borderwidth=1, relief="solid")
-website_entry.grid(row=1, column=1, columnspan=2, pady=5, sticky="ew")
+website_entry = Entry(width=27, bg=ENTRY_COLOR, fg=TEXT_COLOR, font=(FONT_NAME, 10))
+website_entry.grid(row=1, column=1)
 website_entry.focus()
 
 email_entry = Entry(width=35, bg=ENTRY_COLOR, fg=TEXT_COLOR, font=(FONT_NAME, 10), borderwidth=1, relief="solid")
@@ -93,7 +110,24 @@ def on_enter(e, button):
 def on_leave(e, button):
     button['background'] = BUTTON_COLOR
 
-generate_password = Button(text="Generate Password", width=15, command=Generate_Password,
+def find_password():
+    website = website_entry.get()
+    try:
+        with open("savedDetails.json", "r") as data_file:
+            data = json.load(data_file)
+    except FileNotFoundError:
+            messagebox.showinfo(title="💔Error",message="No file found")
+    else:
+        if website in data:
+            email = data[website]["email"]
+            password = data[website]["password"]
+            messagebox.showinfo(title=f"🌴{website}",
+                                message=f"Email: {email}\n Password: {password}")
+        else:
+            messagebox.showinfo(title="💔404", message="Website Not Found")
+
+generate_password = Button(text="Generate Password",
+                           width=15, command=Generate_Password,
                          bg=BUTTON_COLOR, fg="white", font=(FONT_NAME, 9, "bold"),
                          borderwidth=0, relief="flat", activebackground=BUTTON_HOVER)
 generate_password.grid(row=3, column=2, padx=(10, 0), pady=5, sticky="ew")
@@ -107,6 +141,8 @@ add.grid(row=4, column=1, columnspan=2, pady=(10, 0), sticky="ew")
 add.bind("<Enter>", lambda e: on_enter(e, add))
 add.bind("<Leave>", lambda e: on_leave(e, add))
 
+search_button = Button(text="Search", width=13, command=find_password)
+search_button.grid(row=1, column=2)
 # Add some padding to all widgets
 for child in window.winfo_children():
     child.grid_configure(padx=5, pady=5)
